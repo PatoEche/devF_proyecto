@@ -72,36 +72,39 @@ f416$date <- as.Date(f416$date, format = '%d/%m/%Y')
 
 #### Creamos un bucle que recorrera la dimension completa (n columnas) de nuestra dataframe
 #### imprimiendo el nombre de la columna y una tabal con la distribucion absoluta de c/column
-for(i in 1:dim(fi416)[2]) {
+# for(i in 1:dim(fi416)[2]) {
   print(colnames(fi416)[i])
   print(table(fi416[,i]))
 }
+# print(table(f416$pump))
 
-f416 %>% 
-  group_by(cod_cashier) %>%
-  summarise(n_transacciones=n(),
-            ) %>%
-  filter(n_transacciones > 0,
-         )
-
-fi416 %>% 
-  group_by(date) %>%
-  summarise(n_transacciones=n(),
-            mean = mean(value)
-  ) %>%
-  filter(date < '05/04/2019',
+### Info about qty per day / abril
+qty_day <- f416 %>%
+  mutate(month = format(date, "%m"), year = format(date, "%Y"), day = format(date, "%d")) %>%
+  group_by(month, day) %>%
+  filter(month == '04',) %>%
+  summarise(total = sum(qty)
   )
 
-f416 %>% 
-  group_by(qty) %>%
-  summarise(n_transacciones=n(),
-            ) %>%
-  filter(n_transacciones > 0,
-        )
+library(ggplot2)
+q <- data.frame(qty_day)
+p <- ggplot(q)
+p <- p + aes(x = day, y = total, fill = total)
+p <- p + geom_bar(position = 'dodge',stat = 'identity')
+p
 
-value_day_hour <- f416 %>%
-  group_by(date) %>%
-#  group_by(hour) %>%
-  summarise(sum(value))
-  
-  
+
+### Info about  
+cashier_day <- f416 %>%
+  mutate(month = format(date, "%m"), year = format(date, "%Y"), day = format(date, "%d")) %>%
+  filter(month == '04' & id_cashier != 0) %>%
+  group_by(id_cashier) %>%
+  summarise(total_cashier=sum(qty),
+  )
+
+library(ggplot2)
+cd <- data.frame(cashier_day)
+cd <- ggplot(cd, aes(x = id_cashier, y = total_cashier, fill = total_cashier)) +
+  geom_bar(stat = 'identity')
+cd
+
