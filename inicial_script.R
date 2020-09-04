@@ -63,9 +63,29 @@ sapply(f416, function(x) sum(is.na(x)))
 f416 <- replace(f416, is.na(f416), 0)
 
 ### Modify date and hour
+# library 
 library(lubridate)
+# Transformamos fecha en formato R
 f416$date <- as.Date(f416$date, format = '%d/%m/%Y')
+# Include day_week and event (laboral =0, festivo =1, findesemana =2) in data
+f416 <- f416 %>%
+  mutate(day_week = lubridate::wday(f416$date, label = TRUE, abbr=FALSE),
+         event =0
+         )
+# Vector festivos 2019 Chile
+fes_2019 <- c('01/01/2019','19/04/2019','20/04/2019','01/05/2019','21/05/2019',
+              '07/06/2019','29/06/2019','16/07/2019','15/08/2019','20/08/2019',  
+              '18/09/2019','19/09/2019','20/09/2019','29/09/2019','12/10/2019',  
+              '31/10/2019','01/11/2019','08/12/2019','25/12/2019','31/12/2019')
+# Include a number 1 (festivo), in event
+f416[f416$date %in% as.Date(fes_2019, format = '%d/%m/%Y'), 'event'] <- 1
+# Include a number 2 into event like a findesemana
+f416[f416$day_week %in% c('sábado','domingo'), 'event'] <- 2
 
+
+### Hour
+
+str(f416)
 
 ### AGRUPACION Y ANALISIS ESTADISTICO -----------------------------------
 #------------------------------------------------------------------------#
@@ -73,16 +93,16 @@ f416$date <- as.Date(f416$date, format = '%d/%m/%Y')
 #### Creamos un bucle que recorrera la dimension completa (n columnas) de nuestra dataframe
 #### imprimiendo el nombre de la columna y una tabal con la distribucion absoluta de c/column
 # for(i in 1:dim(fi416)[2]) {
-  print(colnames(fi416)[i])
-  print(table(fi416[,i]))
-}
+#  print(colnames(fi416)[i])
+#  print(table(fi416[,i]))
+#}
 # print(table(f416$pump))
 
 ### Info about qty per day / abril
 qty_day <- f416 %>%
   mutate(month = format(date, "%m"), year = format(date, "%Y"), day = format(date, "%d")) %>%
   group_by(month, day) %>%
-  filter(month == '04',) %>%
+  filter(month == '05',) %>%
   summarise(total = sum(qty)
   )
 
