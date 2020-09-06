@@ -1,66 +1,112 @@
 rm(list=ls())
 
-### IMPORTAR DATOS - LIBRARY -----------------------------------------------
-
-setwd('~')
-dir1 <- paste(getwd(), "/DEVF/Curso Data Science/Proyecto/devF_proyecto/Assets", sep="")
-WD <- normalizePath(dir1, winslash = "\\", mustWork = NA)
-file416 <- read.csv(paste(WD, "Abr2019-Jun2019wet.csv", sep="\\"), stringsAsFactors = FALSE)
-
+###
+# IMPORTAR LIBRERIAS ----
+###
 library(tidyverse)
 library(dplyr) # More efficient DATA FRAME working
 library(reshape) # Rename column
 library(data.table) # Modify NA more efficient
+library(corrplot)
 
-### First view
+###
+# IMPORTAR DATOS ----
+###
+setwd('~')
+dir1 <- paste(getwd(), "/DEVF/Curso Data Science/Proyecto/devF_proyecto/Assets", sep="")
+WD <- normalizePath(dir1, winslash = "\\", mustWork = NA)
+file416 <- read.csv(paste(WD, "Abr2019-Jun2019wet.csv", sep="\\"), stringsAsFactors = FALSE, strip.white = TRUE)
+
+###
+# Pre-View
+###
+head(file416)
 str(file416)
 
-### Create a DataFrame just with necessary columns and modify name
+###
+# Create a DataFrame just with necessary columns and modify name
+###
 f416 <- select(file416, ï..Date2, Textbox70, Product1,Textbox42, Textbox44, Pump1, Cashier1, Name1, MOP11)
 
-str(f416)
-
-### SECCION DE MANIPULACION DE DATOS ELIMINAR SUMAR BORRAR AGREGAR CAMBIAR ########
-#-----------------------------------------------------------------------------------#
-
-### Modificacion de nombres de columnas
+###
+# Modificacion de nombres de columnas
+###
 name_head <- colnames(f416)
 new_name_head <- c('date', 'hour', 'product', 'qty', 'value', 'pump', 'id_cashier','name_cashier', 'pay')
 names(f416)[names(f416) == name_head] <- new_name_head
 
+head(f416)
 
-### Modificar los valores eliminando o agregando caracteres
-# f416$name_cashier = gsub('"', '', f416$name_cashier)
-# f416$name_cashier = gsub(' ', '', f416$name_cashier)
+###
+# SECCION DE MANIPULACION DE DATOS Y ANALISIS EXPLORATORIO ########
+###
 
+###
+# Filas y columnas
+###
+print(paste('Número de filas en el dataframe', nrow(f416), sep=": "))
+print(paste('Número de columnas en el dataframe', ncol(f416), sep=": "))
+
+###
+# Descripción del dataset
+###
+str(f416)
 
 ### Bucle para eliminar espacion en blancos al inicio y final de una cadena string
-for(i in 1:nrow(f416)) {
-  f416$pay[i] <- trimws(x = f416$pay[i])
-  f416$id_cashier[i] <- trimws(x = f416$id_cashier[i])
-  f416$product[i] <- trimws(x = f416$product[i])
-}
+#for(i in 1:nrow(f416)) {
+#  f416$pay[i] <- trimws(x = f416$pay[i])
+#  f416$id_cashier[i] <- trimws(x = f416$id_cashier[i])
+#  f416$product[i] <- trimws(x = f416$product[i])
+#}
+###  reemplazado por -> strip.white = TRUE en las seccion de carga de BD
+# Aporte de IsraAgus
 
-#-------------------
-str(f416)
-backupF416 <- data.frame(f416)
-f416 <- data.frame(backupF416)
-#---------------------
+###
+# Modificando variables, convirtiendo chr -> num && eliminando chr especiales
+###
 
-
-### Modify value
+### Modificacion caracteres especiales y decimales
 f416$value = gsub(',00', '', f416$value)
 f416$value = gsub('\\.', '', f416$value)
 f416$qty = gsub(',', '\\.', f416$qty)
 
-### Modify char
+### Modificacion chr -> num
 f416 <- transform(f416, value = as.numeric(value), 
           id_cashier = as.numeric(id_cashier),
           qty = as.numeric(qty))
-
-### Verify & Replace NA to 0
+### Warning debido a valores *Auto en variable id_cashier y Negativos en variable qty
 sapply(f416, function(x) sum(is.na(x)))
-f416 <- replace(f416, is.na(f416), 0)
+### Verify & Replace NA to 9999
+f416 <- replace(f416, is.na(f416), 9999) # 9999 representa asignacion automatica
+
+
+###
+# Estadísticas del dataframe
+###
+stads <- summary(f416)
+stads
+
+###
+# Correlacion entre variables qty
+###
+correlacion <- select(f416, qty, value, date) %>%
+  cor(method = c("pearson"))
+
+print(correlacion)
+corrplot(correlacion,bg="gray", addgrid.col = "black")
+
+# la correlacion entre 
+
+correlacion <- select(f416, qty, value, id_cashier) %>%
+  cor(method = c("pearson"))
+
+print(correlacion)
+corrplot(correlacion,bg="gray", addgrid.col = "black")
+
+
+
+
+
 
 ### Modify date and hour
 # library 
@@ -82,21 +128,10 @@ f416[f416$date %in% as.Date(fes_2019, format = '%d/%m/%Y'), 'event'] <- 1
 # Include a number 2 into event like a findesemana
 f416[f416$day_week %in% c('sábado','domingo'), 'event'] <- 2
 
-
-### Hour
-
 str(f416)
 
 ### AGRUPACION Y ANALISIS ESTADISTICO -----------------------------------
 #------------------------------------------------------------------------#
-
-#### Creamos un bucle que recorrera la dimension completa (n columnas) de nuestra dataframe
-#### imprimiendo el nombre de la columna y una tabal con la distribucion absoluta de c/column
-# for(i in 1:dim(fi416)[2]) {
-#  print(colnames(fi416)[i])
-#  print(table(fi416[,i]))
-#}
-# print(table(f416$pump))
 
 ### Info about qty per day / abril
 qty_day <- f416 %>%
@@ -114,12 +149,12 @@ p <- p + geom_bar(position = 'dodge',stat = 'identity')
 p
 
 
-### Info about  
+### Info about sale, qty or ticket per day
 cashier_day <- f416 %>%
   mutate(month = format(date, "%m"), year = format(date, "%Y"), day = format(date, "%d")) %>%
   filter(month == '04' & id_cashier != 0) %>%
   group_by(id_cashier) %>%
-  summarise(total_cashier=sum(qty),
+  summarise(total_cashier=n(), # sum(qty)=la cantidad de litros por cashier / o tambien comunt=n() el numero de ticket
   )
 
 library(ggplot2)
@@ -128,3 +163,21 @@ cd <- ggplot(cd, aes(x = id_cashier, y = total_cashier, fill = total_cashier)) +
   geom_bar(stat = 'identity')
 cd
 
+### Grafico ticket cashier per day
+
+tempo <- f416 %>%
+  mutate(month = format(date, "%m"), year = format(date, "%Y"), day = format(date, "%d")) %>%
+  filter(month == '04', id_cashier != 0) %>%
+  group_by(day, id_cashier) %>%
+  summarise(ratio = n()) %>% ### numero de transacciones por cajeros x dia
+  mutate(ratio = round(ratio, 0)     
+  )
+
+gr <- ggplot(tempo, aes(x=id_cashier, y=ratio)) +
+  geom_bar(stat="identity", fill="#41b6c4") +
+  geom_text(aes(label=ratio), vjust=-0.3, size=3, angle=0) +
+  facet_wrap(~day) +
+  labs(title="Promedio ticket cashier per day \n Mes de Abril", 
+       x="Cashier", y="Promedio Ticket") +
+  theme_bw()
+gr
