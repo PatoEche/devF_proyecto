@@ -144,6 +144,27 @@ bar <- ggplot(litros,aes(x=day,y=litros_dia)) +
   labs(title="Número de Litros por dia",subtitle='Trimestre Abril-Junio',x="Dias",y="Litros")
 bar
 
+###
+# Numero de Ventas por Cajero
+###
+
+tempo <- f416 %>%
+  filter(month != 7) %>%
+  group_by(month, id_cashier) %>%
+  summarise(total_cashier=n(),
+  )
+# Crear funcion para etraer iniciales de listas de cajeros
+tempo$id_cashier <- factor(tempo$id_cashier,
+                           levels = c(1000, 1001, 1002, 1003, 1005,  1006, 1008, 1009,
+                                      1011, 1012, 1014, 1016, 1018, 1019, 1020),
+                           labels = c("ShCa","ENVA","VICA","GIVA","NN1","MAMA", "NN2","JUCR",
+                                      "NN3","JOPI","ALFI","ARCA","EDMA","ALLE","GORA")
+)
+
+line <- ggplot(tempo, aes(x=month,y=total_cashier,group=id_cashier,color=id_cashier)) +
+  geom_line()
+
+line
 
 ###
 # Numero de Ventas por Cajero
@@ -154,10 +175,17 @@ tempo <- f416 %>%
   group_by(id_cashier) %>%
   summarise(total_cashier=n(),
   )
+# Crear funcion para etraer iniciales de listas de cajeros
+tempo$id_cashier <- factor(tempo$id_cashier,
+                    levels = c(1000, 1001, 1002, 1003, 1005,  1006, 1008, 1009,
+                             1011, 1012, 1014, 1016, 1018, 1019, 1020),
+                    labels = c("ShCa","ENVA","VICA","GIVA","NN1","MAMA", "NN2","JUCR",
+                             "NN3","JOPI","ALFI","ARCA","EDMA","ALLE","GORA")
+                    )
 
 bar <- ggplot(tempo, aes(x = id_cashier, y = total_cashier, fill = total_cashier)) +
       geom_bar(stat = 'identity') +
-      labs(title="Número de ventas registradas por Cajero",subtitle='Trimestre Abril-Junio',
+      labs(title="Número de ventas registradas por Cajero",subtitle='Abril',
            x="Identificado Cajero",y="Transacciones")
 bar
 
@@ -165,17 +193,24 @@ bar
 # Matriz de color, Venta cajero por dia de semana
 ###
 
-cantidad_cajero <- f416 %>%
+tempo <- f416 %>%
   filter(month == 4) %>%
   group_by(day_week, id_cashier) %>%
   summarise(promedio_cajero = mean(qty), litros_cajero = sum(qty)
   )
 
-ggplot(cantidad_cajero, aes(id_cashier,day_week)) +
-  geom_tile(aes(fill = litros_cajero)) + 
-  scale_fill_gradient(low = "green", high = "red") +
-  theme_classic()
+tempo$id_cashier <- factor(tempo$id_cashier,
+                           levels = c(1000, 1001, 1002, 1003, 1005,  1006, 1008, 1009,
+                                      1011, 1012, 1014, 1016, 1018, 1019, 1020),
+                           labels = c("ShCa","ENVA","VICA","GIVA","NN1","MAMA", "NN2","JUCR",
+                                      "NN3","JOPI","ALFI","ARCA","EDMA","ALLE","GORA")
+                    )
 
+mt <- ggplot(tempo, aes(id_cashier,day_week)) +
+      geom_tile(aes(fill = litros_cajero)) + 
+      scale_fill_gradient(low = "green", high = "red") +
+      theme_classic()
+mt
 
 ###
 # Grafico litros por cajero por dia en un Mes
@@ -190,7 +225,15 @@ tempo <- f416 %>%
   mutate(litros_dia= sum(litros_cajero),
          ratio = round((litros_cajero/litros_dia)*100, 1)     
   )
+
+tempo$id_cashier <- factor(tempo$id_cashier,
+                           levels = c(1000, 1001, 1002, 1003, 1005,  1006, 1008, 1009,
+                                      1011, 1012, 1014, 1016, 1018, 1019, 1020),
+                           labels = c("ShCa","ENVA","VICA","GIVA","NN1","MAMA", "NN2","JUCR",
+                                      "NN3","JOPI","ALFI","ARCA","EDMA","ALLE","GORA")
+                    )
 print(tempo)
+
 gr <- ggplot(tempo, aes(x=id_cashier, y=ratio)) +
   geom_bar(stat="identity", fill="#41b6c4") +
   geom_text(aes(label=ratio), vjust=-0.3, size=3, angle=0) +
@@ -213,6 +256,13 @@ tempo <- f416 %>%
   mutate(total_mes= sum(total),
          ratio = round((total/total_mes)*100, 1) # ratio participacion cajero en total mes
   )
+
+tempo$id_cashier <- factor(tempo$id_cashier,
+                           levels = c(1000, 1001, 1002, 1003, 1005,  1006, 1008, 1009,
+                                      1011, 1012, 1014, 1016, 1018, 1019, 1020),
+                           labels = c("ShCa","ENVA","VICA","GIVA","NN1","MAMA", "NN2","JUCR",
+                                      "NN3","JOPI","ALFI","ARCA","EDMA","ALLE","GORA")
+                    )
 
 gr <- ggplot(tempo, aes(x=id_cashier, y=ratio)) +
   geom_bar(stat="identity", fill="#41b6c4") +
@@ -245,3 +295,6 @@ gr <- ggplot(tempo, aes(x=day, y=ratio)) +
        x="Dia del Mes", y="% de Participacion") +
   theme_bw()
 gr
+
+#labels = c("ShellCard","ENZO VALVERDE","VICTOR CATALAN","GIOVANNI VALVERDE","NN1","MANUEL MARIN", "NN2","JUAN CRUZ",
+#"XXXXXXXXXXXXXXXX","JORGE PINO","ALEJANDRO FIGUEROA","ARIEL CARO","EDUARDO MARDONES","ALFREDO LEON","GONZALO RAQUELICH"))
