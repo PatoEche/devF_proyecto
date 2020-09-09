@@ -126,26 +126,46 @@ str(f416)
 # AGRUPACION Y ANALISIS DESCRIPTIVO -----------------------------------
 ###
 
-
+####
+# PREGUNTA: Hay dias del mes con mayor frecuencia?
+# PREGUNTA: Son estos dias frecuentes a lo largo del anio?
+# Hipotesis: Hay periodos, como las quincenas que la venta aumenta
+# Participacion Mensual por cada dia del Mes
 ###
-# Obtener datos de cantidades y promedios de venta diarias y por cajeros
-###
 
-# Cantidad y Promedio litros diarios y mensual
+# Distribucion de la participacion por dia en cada mes
 litros <- f416 %>%
-            group_by(month,day) %>%
-            summarise(litros_dia = sum(qty), promedio_litros = round(mean(qty),2)
-            )
+  filter(month != 7) %>%
+  group_by(month,day) %>%
+  summarise(litro_dia = sum(qty)) %>%
+  ungroup() %>%
+  group_by(month) %>%
+  mutate(litros_mes= sum(litro_dia),
+         promedio = round((litro_dia/litros_mes)*100, 1)
+  )
+litros$day <- factor(litros$day,
+                     levels = litros$day,
+                     labels = lubridate::days(litros$day)
+)
+litros$month <- factor(litros$month,
+                       levels = c(4,5,6,7),
+                       labels = c("Abril","Mayo","Junio","Julio")
+)
 
-print(litros)
+gr <- ggplot(litros, aes(x=day, y=promedio)) +
+  geom_bar(stat="identity", fill="#41b6c4") +
+  geom_text(aes(label=promedio), vjust=-0.3, size=2, angle=0) +
+  facet_wrap(~month) +
+  labs(title="Distribucion de venta diaria \n Trimestre Abril - Junio", 
+       x="Dias", y="% Participacion en el Mes") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=90))
 
-bar <- ggplot(litros,aes(x=day,y=litros_dia)) +
-  geom_bar(stat = "identity") +
-  labs(title="Número de Litros por dia",subtitle='Trimestre Abril-Junio',x="Dias",y="Litros")
-bar
+gr
 
 ###
-# Numero de Ventas por Cajero
+# PREGUNTA: Cual es la distribucion de ventas dce cada cajero a lo largo del tiempo?
+# Hipotesis: Hay distintos tipos de cajeros (Lentos y Rapidos)
 ###
 
 tempo <- f416 %>%
@@ -153,7 +173,7 @@ tempo <- f416 %>%
   group_by(month, id_cashier) %>%
   summarise(total_cashier=n(),
   )
-# Crear funcion para etraer iniciales de listas de cajeros
+
 tempo$id_cashier <- factor(tempo$id_cashier,
                            levels = c(1000, 1001, 1002, 1003, 1005,  1006, 1008, 1009,
                                       1011, 1012, 1014, 1016, 1018, 1019, 1020),
@@ -161,13 +181,21 @@ tempo$id_cashier <- factor(tempo$id_cashier,
                                       "NN3","JOPI","ALFI","ARCA","EDMA","ALLE","GORA")
 )
 
+tempo$month <- factor(tempo$month,
+                           levels = c(4,5,6,7),
+                           labels = c("Abril","Mayo","Junio","Julio")
+)
+
 line <- ggplot(tempo, aes(x=month,y=total_cashier,group=id_cashier,color=id_cashier)) +
-  geom_line()
+        geom_line() +
+        labs(title="Cantidad de Ticket",subtitle='Trimestre Abr-Jun',
+        x="Mes",y="N Ticket", group='Cajero') +
+        theme_bw()
 
 line
 
 ###
-# Numero de Ventas por Cajero
+# Visualizacion Mensual de cantidad de Ticket por cajero
 ###
 
 tempo <- f416 %>%
@@ -175,7 +203,7 @@ tempo <- f416 %>%
   group_by(id_cashier) %>%
   summarise(total_cashier=n(),
   )
-# Crear funcion para etraer iniciales de listas de cajeros
+
 tempo$id_cashier <- factor(tempo$id_cashier,
                     levels = c(1000, 1001, 1002, 1003, 1005,  1006, 1008, 1009,
                              1011, 1012, 1014, 1016, 1018, 1019, 1020),
@@ -186,17 +214,21 @@ tempo$id_cashier <- factor(tempo$id_cashier,
 bar <- ggplot(tempo, aes(x = id_cashier, y = total_cashier, fill = total_cashier)) +
       geom_bar(stat = 'identity') +
       labs(title="Número de ventas registradas por Cajero",subtitle='Abril',
-           x="Identificado Cajero",y="Transacciones")
+           x="Identificador Cajero",y="Transacciones")
 bar
 
 ###
-# Matriz de color, Venta cajero por dia de semana
+# PREGUNTA: Cual es la distribucion semanal en las ventas de cada cajero?
+# Hipotesis: Cajeros con mayor numero de ticket durante los dias de semana
 ###
+
+# Matriz de color, Venta cajero por dia de semana
+
 
 tempo <- f416 %>%
   filter(month == 4) %>%
   group_by(day_week, id_cashier) %>%
-  summarise(promedio_cajero = mean(qty), litros_cajero = sum(qty)
+  summarise(ticket = n(), litros_cajero = sum(qty)
   )
 
 tempo$id_cashier <- factor(tempo$id_cashier,
@@ -207,12 +239,14 @@ tempo$id_cashier <- factor(tempo$id_cashier,
                     )
 
 mt <- ggplot(tempo, aes(id_cashier,day_week)) +
-      geom_tile(aes(fill = litros_cajero)) + 
+      geom_tile(aes(fill = ticket)) + 
       scale_fill_gradient(low = "green", high = "red") +
       theme_classic()
 mt
 
 ###
+# PREGUNTA: Cual es la participacion de cada cajero en cada dia de la semana?
+# Hipotesis: Los cajeros mantienen una participacion mayor durante la semana.
 # Grafico litros por cajero por dia en un Mes
 ###
 
@@ -236,14 +270,19 @@ print(tempo)
 
 gr <- ggplot(tempo, aes(x=id_cashier, y=ratio)) +
   geom_bar(stat="identity", fill="#41b6c4") +
-  geom_text(aes(label=ratio), vjust=-0.3, size=3, angle=0) +
+  geom_text(aes(label=ratio), vjust=-0.3, size=2, angle=0) +
   facet_wrap(~day) +
   labs(title="Promedio por Cajero \n Venta Diaria  Mes de Abril", 
        x="Cajero", y="% por Cajero") +
-  theme_bw()
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=90))
 gr
 
 ###
+# PREGUNTA: Existe diferencia entre los cajeros y su participacion en la venta total de cada mes?
+# PREGUNTA: Es esta diferencia constante en el tiempo?
+# Hipotesis: Hay cajeros que aportan mas a las ventas y son consistentes en el tiempo, es decir,
+# son mas eficientes (Mayor cantidad de Ventas o litros, nos permite catregorizar por eficiencia)
 # Participacion porcentual de Cajeros X Mes
 ###
 
@@ -270,31 +309,10 @@ gr <- ggplot(tempo, aes(x=id_cashier, y=ratio)) +
   facet_wrap(~month) +
   labs(title="Participacion en la Venta Mensual\n Por Cada Cajero", 
        x="Identificador Cajero", y="% de Participacion") +
-  theme_bw()
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=90))
 gr
 
-####
-# Participacion Mensual por cada dia del Mes
-###
-
-tempo <- f416 %>%
-        filter(month != 7,) %>%
-        group_by(month, day) %>%
-        summarise(venta_dia = sum(qty)) %>%  ## Venta Diaria
-        ungroup() %>%
-        group_by(month,) %>%
-        mutate(total_mes= sum(venta_dia),
-        ratio = round((venta_dia/total_mes)*100, 1) # participacion x dia en total mes
-        )
-
-gr <- ggplot(tempo, aes(x=day, y=ratio)) +
-  geom_bar(stat="identity", fill="#41b6c4") +
-  geom_text(aes(label=ratio), vjust=-0.3, size=3, angle=0) +
-  facet_wrap(~month) +
-  labs(title="Participacion en la Venta Mensual\n Por Dia del Mes", 
-       x="Dia del Mes", y="% de Participacion") +
-  theme_bw()
-gr
 
 #labels = c("ShellCard","ENZO VALVERDE","VICTOR CATALAN","GIOVANNI VALVERDE","NN1","MANUEL MARIN", "NN2","JUAN CRUZ",
 #"XXXXXXXXXXXXXXXX","JORGE PINO","ALEJANDRO FIGUEROA","ARIEL CARO","EDUARDO MARDONES","ALFREDO LEON","GONZALO RAQUELICH"))
