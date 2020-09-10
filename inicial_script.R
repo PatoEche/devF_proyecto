@@ -1,8 +1,7 @@
 rm(list=ls())
 
-###
-# IMPORTAR LIBRERIAS ----
-###
+################################## IMPORTAR LIBRERIAS #######################################
+
 library(tidyverse)
 library(dplyr) # More efficient DATA FRAME working
 library(reshape) # Rename column
@@ -11,12 +10,13 @@ library(corrplot)
 library(lubridate)
 library(ggplot2)
 
-### 
-# IMPORTAR DATOS ----
-###
+################################# IMPORTAR DATOS ############################################
+
 setwd('~')
 dir1 <- paste(getwd(), "/DEVF/Curso Data Science/Proyecto/devF_proyecto/Assets", sep="")
+dir2 <- paste(getwd(), "/DEVF/Curso Data Science/Proyecto/devF_proyecto/Graph", sep="")
 WD <- normalizePath(dir1, winslash = "\\", mustWork = NA)
+WD2 <- normalizePath(dir2, winslash = "\\", mustWork = NA)
 file416 <- read.csv(paste(WD, "Abr2019-Jun2019wet.csv", sep="\\"), stringsAsFactors = FALSE, strip.white = TRUE)
 
 ###
@@ -37,31 +37,16 @@ name_head <- colnames(f416)
 new_name_head <- c('date', 'hour', 'product', 'qty', 'value', 'pump', 'id_cashier','name_cashier', 'pay')
 names(f416)[names(f416) == name_head] <- new_name_head
 
-head(f416)
 
-###
-# SECCION DE MANIPULACION DE DATOS Y ANALISIS EXPLORATORIO ########
-###
-
-###
-# Filas y columnas
-###
-print(paste('Número de filas en el dataframe', nrow(f416), sep=": "))
-print(paste('Número de columnas en el dataframe', ncol(f416), sep=": "))
+################## SECCION DE MANIPULACION DE DATOS Y ANALISIS EXPLORATORIO ##########################3
 
 ###
 # Descripción del dataset
 ###
+head(f416)
 str(f416)
-
-### Bucle para eliminar espacion en blancos al inicio y final de una cadena string
-#for(i in 1:nrow(f416)) {
-#  f416$pay[i] <- trimws(x = f416$pay[i])
-#  f416$id_cashier[i] <- trimws(x = f416$id_cashier[i])
-#  f416$product[i] <- trimws(x = f416$product[i])
-#}
-###  reemplazado por -> strip.white = TRUE en las seccion de carga de BD
-# Aporte de IsraAgus
+print(paste('Número de filas en el dataframe', nrow(f416), sep=": "))
+print(paste('Número de columnas en el dataframe', ncol(f416), sep=": "))
 
 ###
 # Modificando variables, convirtiendo chr -> num && eliminando chr especiales
@@ -78,6 +63,7 @@ f416 <- transform(f416, value = as.numeric(value),
           qty = as.numeric(qty))
 ### Warning debido a valores *Auto en variable id_cashier y Negativos en variable qty
 sapply(f416, function(x) sum(is.na(x)))
+
 ### Verify & Replace NA to 0
 f416 <- replace(f416, is.na(f416), 0) # 0 representa asignacion automatica
 
@@ -85,20 +71,10 @@ f416 <- replace(f416, is.na(f416), 0) # 0 representa asignacion automatica
 f416$id_cashier[f416$id_cashier == 0] <- 1000
 f416$name_cashier[f416$id_cashier == 1000] <- "ShellCard"
 
-###
-# Estadísticas del dataframe
-###
-stads <- summary(f416)
-stads
 
-
-###
-# Modify date
-###
-
-# Transformamos fecha en formato R
+### Modificacion Formato fecha, Transformamos fecha en formato R
 f416$date <- as.Date(f416$date, format = '%d/%m/%Y')
-# Include day_week and event (laboral =0, festivo =1, findesemana =2) in data
+# Incluir evento (laboral =0, festivo =1, findesemana =2)
 f416 <- f416 %>%
   mutate(day_week = lubridate::wday(f416$date, label = TRUE, abbr=FALSE),
          event =0
@@ -121,22 +97,25 @@ f416 <- f416 %>%
         transform(day = as.numeric(day),month = as.numeric(month), year = as.numeric(year))
 
 str(f416)
+###
+# Estadísticas del dataframe
+###
+stads <- summary(f416)
+stads
 
-###
-# AGRUPACION Y ANALISIS DESCRIPTIVO -----------------------------------
-###
+############################ AGRUPACION Y ANALISIS DESCRIPTIVO ##############################
+
 
 ####
 # PREGUNTA: Hay dias del mes con mayor frecuencia?
 # PREGUNTA: Son estos dias frecuentes a lo largo del anio?
-# Hipotesis: Hay periodos, como las quincenas que la venta aumenta
-# Participacion Mensual por cada dia del Mes
+# Hipotesis: Hay periodos, como las quincenas y fin de mes que la venta aumenta
 ###
 
 # Distribucion de la participacion por dia en cada mes
 litros <- f416 %>%
   filter(month != 7) %>%
-  group_by(month,day) %>%
+  group_by(month,day, date) %>%
   summarise(litro_dia = sum(qty)) %>%
   ungroup() %>%
   group_by(month) %>%
@@ -145,12 +124,13 @@ litros <- f416 %>%
   )
 litros$day <- factor(litros$day,
                      levels = litros$day,
+                     #labels = as.Date.character(litros$date)
                      labels = lubridate::days(litros$day)
-)
+                )
 litros$month <- factor(litros$month,
                        levels = c(4,5,6,7),
                        labels = c("Abril","Mayo","Junio","Julio")
-)
+                )
 
 gr <- ggplot(litros, aes(x=day, y=promedio)) +
   geom_bar(stat="identity", fill="#41b6c4") +
@@ -162,12 +142,19 @@ gr <- ggplot(litros, aes(x=day, y=promedio)) +
   theme(axis.text.x = element_text(angle=90))
 
 gr
+ggsave(paste(WD2, "distribucionventaspordia.png", sep="\\"), plot=gr, width=12, height=12)
+summary(litros)
+### OBS: Quincenas marcan pick de % mensual (dia viernes cerano a quincena)
+###       Fines de semana, Festivos y fin de semanas largo, baja participacion
+###       Promedio diario: 17000 ltr / equivalente al 3,3% mensual, es decir, bajo esto son dias de baja venta
+      
 
 ###
-# PREGUNTA: Cual es la distribucion de ventas dce cada cajero a lo largo del tiempo?
+# PREGUNTA: Cual es la distribucion de ventas de cada cajero a lo largo del tiempo?
 # Hipotesis: Hay distintos tipos de cajeros (Lentos y Rapidos)
 ###
 
+# Distribucion de la cantidad de ticket de cada cajero
 tempo <- f416 %>%
   filter(month != 7) %>%
   group_by(month, id_cashier) %>%
@@ -193,6 +180,7 @@ line <- ggplot(tempo, aes(x=month,y=total_cashier,group=id_cashier,color=id_cash
         theme_bw()
 
 line
+ggsave(paste(WD2, "distribuciontiketporcajero.png", sep="\\"), plot=line, width=12, height=12)
 
 ###
 # Visualizacion Mensual de cantidad de Ticket por cajero
@@ -216,6 +204,12 @@ bar <- ggplot(tempo, aes(x = id_cashier, y = total_cashier, fill = total_cashier
       labs(title="Número de ventas registradas por Cajero",subtitle='Abril',
            x="Identificador Cajero",y="Transacciones")
 bar
+summary(tempo)
+ggsave(paste(WD2, "ventasporcajeroMES.png", sep="\\"), plot=bar, width=12, height=12)
+
+### OBS: El promedio de venta por cajero es de 1335 litros. Sobre esto es mas eficiente, bajo menors eficiente
+###       Tambien se debe considerar los dias trabajados de cada cajero
+
 
 ###
 # PREGUNTA: Cual es la distribucion semanal en las ventas de cada cajero?
@@ -224,9 +218,8 @@ bar
 
 # Matriz de color, Venta cajero por dia de semana
 
-
 tempo <- f416 %>%
-  filter(month == 4) %>%
+  filter(month != 7) %>%
   group_by(day_week, id_cashier) %>%
   summarise(ticket = n(), litros_cajero = sum(qty)
   )
@@ -243,13 +236,24 @@ mt <- ggplot(tempo, aes(id_cashier,day_week)) +
       scale_fill_gradient(low = "green", high = "red") +
       theme_classic()
 mt
+ml <- ggplot(tempo, aes(id_cashier,day_week)) +
+  geom_tile(aes(fill = litros_cajero)) + 
+  scale_fill_gradient(low = "green", high = "red") +
+  theme_classic()
+ml
+summary(tempo)
+ggsave(paste(WD2, "ticketpordiasemana.png", sep="\\"), plot=mt, width=12, height=12)
+ggsave(paste(WD2, "litrospordiasemana.png", sep="\\"), plot=ml, width=12, height=12)
+
+### OBS: El domingo es el dia con menos ticket y litros vendidos, las semana registra el area de sobrecompra
+###       El promedio de ticket es de 564 diarios
 
 ###
 # PREGUNTA: Cual es la participacion de cada cajero en cada dia de la semana?
 # Hipotesis: Los cajeros mantienen una participacion mayor durante la semana.
-# Grafico litros por cajero por dia en un Mes
 ###
 
+# Grafico litros por cajero por dia en un Mes
 tempo <- f416 %>%
   filter(month == 4,) %>%
   group_by(day, id_cashier) %>%
@@ -277,6 +281,18 @@ gr <- ggplot(tempo, aes(x=id_cashier, y=ratio)) +
   theme_bw() +
   theme(axis.text.x = element_text(angle=90))
 gr
+
+summary(tempo)
+ggsave(paste(WD2, "ratioventascajerospormes.png", sep="\\"), plot=gr, width=12, height=12)
+
+## OBS: La participacion promedio diaria de cada cajero debe ser superior al 9,5 de la venta diaria, para ser eficiente
+###     O los litros diarios de cada cajero deben superar los 1630 litros
+###     Destacar que un ticket equivale a una venta, esto quiere decir que vender 10 ticket de 10 litros equivale a vender
+###     solo un ticket de 100 litros. Se debe considerar al calcular la eficiencia de los cajeros.
+
+
+
+############## DEFINICION Y CALCULO DE VARIABLE OBJETIVO ############################
 
 ###
 # PREGUNTA: Existe diferencia entre los cajeros y su participacion en la venta total de cada mes?
@@ -313,6 +329,83 @@ gr <- ggplot(tempo, aes(x=id_cashier, y=ratio)) +
   theme(axis.text.x = element_text(angle=90))
 gr
 
+### OBS: La participacion promedio podria servir como rango de categorizacion de una variable objetivo EFICIENCIA
 
-#labels = c("ShellCard","ENZO VALVERDE","VICTOR CATALAN","GIOVANNI VALVERDE","NN1","MANUEL MARIN", "NN2","JUAN CRUZ",
-#"XXXXXXXXXXXXXXXX","JORGE PINO","ALEJANDRO FIGUEROA","ARIEL CARO","EDUARDO MARDONES","ALFREDO LEON","GONZALO RAQUELICH"))
+###
+# PREGUNTA: Cantidad de turnos trabajados en el mes de cada cajero?
+# Hipotesis: Aun cuando los cajeros trabajan una cantidad diferente de turnos, hay cajeros 
+#             con mejor eficiencia
+###
+
+# Ticket diarios por cajero
+tempo <- f416 %>%
+        filter(month != 7) %>%
+        group_by(month, day, id_cashier) %>%
+        summarise(ticket_diarios = n())
+
+
+tempo$id_cashier <- factor(tempo$id_cashier,
+                           levels = c(1000, 1001, 1002, 1003, 1005,  1006, 1008, 1009,
+                                      1011, 1012, 1014, 1016, 1018, 1019, 1020),
+                           labels = c("ShCa","ENVA","VICA","GIVA","NN1","MAMA", "NN2","JUCR",
+                                      "NN3","JOPI","ALFI","ARCA","EDMA","ALLE","GORA")
+)
+
+gr <- ggplot(tempo, aes(x=id_cashier, y=ticket_diarios)) +
+  geom_point()
+gr
+
+
+# Ticket Mensuales por cajero
+
+tempo2 <- f416 %>%
+  filter(month != 7) %>%
+  group_by(month, day, id_cashier) %>%
+  summarise(ticket_diarios = n()) %>%
+  ungroup() %>%
+  group_by(month, id_cashier) %>%
+  summarise(ticket_mensual = sum(ticket_diarios))
+
+tempo2$id_cashier <- factor(tempo2$id_cashier,
+                           levels = c(1000, 1001, 1002, 1003, 1005,  1006, 1008, 1009,
+                                      1011, 1012, 1014, 1016, 1018, 1019, 1020),
+                           labels = c("ShCa","ENVA","VICA","GIVA","NN1","MAMA", "NN2","JUCR",
+                                      "NN3","JOPI","ALFI","ARCA","EDMA","ALLE","GORA")
+)
+gr <- ggplot(tempo2, aes(x=id_cashier, y=ticket_mensual)) +
+  geom_point()
+gr
+
+summary(tempo2)
+summary(tempo2)
+# La media y el promedio, ya sea mensual o diario, podrian servir como rangos de categorizacion de eficiencia,
+# junto a dias trabajados
+summary(tempo2)
+
+# OBS: Algunos cajeros tienen todos los meses mas de 1500 ticket otros menos de 1500
+
+# Dias trabajados por cajero
+# Porcentaje dias trabajados del cajero en el periodo
+
+tempo3 <- f416 %>%
+  filter(month != 7) %>%
+  group_by(id_cashier, month, day) %>%
+  summarise(ticket_diarios = n())%>%
+  group_by(id_cashier) %>%
+  summarise(dias_trabajados=n()) %>%
+  mutate(dias_almes= round((dias_trabajados/(length(unique(f416$date))-1))*100, 1))
+  
+# Total de turnos realizados por todos los cajeros en 3 meses >>> 923
+# sum(tempo3$dias_trabajados)
+
+tempo3$id_cashier <- factor(tempo3$id_cashier,
+                           levels = c(1000, 1001, 1002, 1003, 1005,  1006, 1008, 1009,
+                                      1011, 1012, 1014, 1016, 1018, 1019, 1020),
+                           labels = c("ShCa","ENVA","VICA","GIVA","NN1","MAMA", "NN2","JUCR",
+                                      "NN3","JOPI","ALFI","ARCA","EDMA","ALLE","GORA")
+)
+
+
+
+    
+# subset(datframe, condicion, columnas a verificar)
