@@ -144,8 +144,7 @@ gr <- ggplot(litros, aes(x=day, y=promedio)) +
 gr
 ggsave(paste(WD2, "distribucionventaspordia.png", sep="\\"), plot=gr, width=12, height=12)
 summary(litros)
-### OBS: Quincenas marcan pick de % mensual (dia viernes cerano a quincena)
-###       Fines de semana, Festivos y fin de semanas largo, baja participacion
+### O                                                                                                                                        mana, Festivos y fin de semanas largo, baja participacion
 ###       Promedio diario: 17000 ltr / equivalente al 3,3% mensual, es decir, bajo esto son dias de baja venta
       
 
@@ -180,7 +179,7 @@ line <- ggplot(tempo, aes(x=month,y=total_cashier,group=id_cashier,color=id_cash
         theme_bw()
 
 line
-ggsave(paste(WD2, "distribuciontiketporcajero.png", sep="\\"), plot=line, width=12, height=12)
+ggsave(paste(WD2, "distribucionticketporcajero.png", sep="\\"), plot=line, width=12, height=12)
 
 ###
 # Visualizacion Mensual de cantidad de Ticket por cajero
@@ -207,8 +206,8 @@ bar
 summary(tempo)
 ggsave(paste(WD2, "ventasporcajeroMES.png", sep="\\"), plot=bar, width=12, height=12)
 
-### OBS: El promedio de venta por cajero es de 1335 litros. Sobre esto es mas eficiente, bajo menors eficiente
-###       Tambien se debe considerar los dias trabajados de cada cajero
+### OBS: El promedio de venta por cajero es de 1335 litros en el mes de Abril. Sobre esto es mas eficiente, bajo menors eficiente
+###       Tambien se debe considerar los dias trabajados de cada cajero (considera Mes de Abril)
 
 
 ###
@@ -269,8 +268,7 @@ tempo$id_cashier <- factor(tempo$id_cashier,
                                       1011, 1012, 1014, 1016, 1018, 1019, 1020),
                            labels = c("ShCa","ENVA","VICA","GIVA","NN1","MAMA", "NN2","JUCR",
                                       "NN3","JOPI","ALFI","ARCA","EDMA","ALLE","GORA")
-                    )
-print(tempo)
+  )
 
 gr <- ggplot(tempo, aes(x=id_cashier, y=ratio)) +
   geom_bar(stat="identity", fill="#41b6c4") +
@@ -289,7 +287,6 @@ ggsave(paste(WD2, "ratioventascajerospormes.png", sep="\\"), plot=gr, width=12, 
 ###     O los litros diarios de cada cajero deben superar los 1630 litros
 ###     Destacar que un ticket equivale a una venta, esto quiere decir que vender 10 ticket de 10 litros equivale a vender
 ###     solo un ticket de 100 litros. Se debe considerar al calcular la eficiencia de los cajeros.
-
 
 
 ############## DEFINICION Y CALCULO DE VARIABLE OBJETIVO ############################
@@ -329,7 +326,12 @@ gr <- ggplot(tempo, aes(x=id_cashier, y=ratio)) +
   theme(axis.text.x = element_text(angle=90))
 gr
 
+summary(tempo)
+ggsave(paste(WD2, "participacionMensualporCajero.png", sep="\\"), plot=gr, width=12, height=12)
+
 ### OBS: La participacion promedio podria servir como rango de categorizacion de una variable objetivo EFICIENCIA
+###       El porcentaje de participacion sobre el promedio 7,3 podrias er considerado mas eficiente
+
 
 ###
 # PREGUNTA: Cantidad de turnos trabajados en el mes de cada cajero?
@@ -341,8 +343,7 @@ gr
 tempo <- f416 %>%
         filter(month != 7) %>%
         group_by(month, day, id_cashier) %>%
-        summarise(ticket_diarios = n())
-
+        summarise(ticket_diarios = n(), litros_diarios=sum(qty))
 
 tempo$id_cashier <- factor(tempo$id_cashier,
                            levels = c(1000, 1001, 1002, 1003, 1005,  1006, 1008, 1009,
@@ -351,20 +352,31 @@ tempo$id_cashier <- factor(tempo$id_cashier,
                                       "NN3","JOPI","ALFI","ARCA","EDMA","ALLE","GORA")
 )
 
-gr <- ggplot(tempo, aes(x=id_cashier, y=ticket_diarios)) +
+gt <- ggplot(tempo, aes(x=id_cashier, y=ticket_diarios)) +
   geom_point()
-gr
+gt
+gl <- ggplot(tempo, aes(x=id_cashier, y=litros_diarios)) +
+  geom_point()
+gl
 
+summary(tempo)
+ggsave(paste(WD2, "ticketdiariosCajero.png", sep="\\"), plot=gt, width=12, height=12)
+ggsave(paste(WD2, "litrosdiariosCajero.png", sep="\\"), plot=gl, width=12, height=12)
+
+### OBS: El promedio de ticket diarios es de 61,73 por cajero (considera 3 meses)
+###       El promedio de litros diarios es de 1679 por casjero (considera 3 meses)
 
 # Ticket Mensuales por cajero
 
 tempo2 <- f416 %>%
   filter(month != 7) %>%
   group_by(month, day, id_cashier) %>%
-  summarise(ticket_diarios = n()) %>%
+  summarise(ticket_diarios = n(), litros_diarios=sum(qty)) %>%
   ungroup() %>%
   group_by(month, id_cashier) %>%
-  summarise(ticket_mensual = sum(ticket_diarios))
+  summarise(ticket_periodo = sum(ticket_diarios), litros_periodo= sum(litros_diarios),
+            litros_ticket=round((litros_periodo/litros_diarios),1))
+
 
 tempo2$id_cashier <- factor(tempo2$id_cashier,
                            levels = c(1000, 1001, 1002, 1003, 1005,  1006, 1008, 1009,
@@ -372,17 +384,20 @@ tempo2$id_cashier <- factor(tempo2$id_cashier,
                            labels = c("ShCa","ENVA","VICA","GIVA","NN1","MAMA", "NN2","JUCR",
                                       "NN3","JOPI","ALFI","ARCA","EDMA","ALLE","GORA")
 )
-gr <- ggplot(tempo2, aes(x=id_cashier, y=ticket_mensual)) +
+gt <- ggplot(tempo2, aes(x=id_cashier, y=ticket_periodo)) +
   geom_point()
-gr
+gt
+gl <- ggplot(tempo2, aes(x=id_cashier, y=litros_periodo)) +
+  geom_point()
+gl
 
 summary(tempo2)
-summary(tempo2)
-# La media y el promedio, ya sea mensual o diario, podrian servir como rangos de categorizacion de eficiencia,
-# junto a dias trabajados
-summary(tempo2)
+ggsave(paste(WD2, "ticketPeriodoCajero.png", sep="\\"), plot=gt, width=12, height=12)
+ggsave(paste(WD2, "litrosPeriodoCajero.png", sep="\\"), plot=gl, width=12, height=12)
 
-# OBS: Algunos cajeros tienen todos los meses mas de 1500 ticket otros menos de 1500
+### OBS: Algunos cajeros tienen todos los meses mas de 1500, el promedio es 1390 tickey y 37810 litros mensuales
+###     Se puede extraer que en el periodo Abril - Junio -> a venta promedio por ticket es de 27,2 litros
+
 
 # Dias trabajados por cajero
 # Porcentaje dias trabajados del cajero en el periodo
@@ -393,7 +408,7 @@ tempo3 <- f416 %>%
   summarise(ticket_diarios = n())%>%
   group_by(id_cashier) %>%
   summarise(dias_trabajados=n()) %>%
-  mutate(dias_almes= round((dias_trabajados/(length(unique(f416$date))-1))*100, 1))
+  mutate(promedio_periodo= round((dias_trabajados/(length(unique(f416$date))-1))*100, 1))
   
 # Total de turnos realizados por todos los cajeros en 3 meses >>> 923
 # sum(tempo3$dias_trabajados)
@@ -405,7 +420,19 @@ tempo3$id_cashier <- factor(tempo3$id_cashier,
                                       "NN3","JOPI","ALFI","ARCA","EDMA","ALLE","GORA")
 )
 
+gp <- ggplot(tempo3, aes(x=id_cashier, y=promedio_periodo)) +
+  geom_point()
+gp
+gt <- ggplot(tempo3, aes(x=id_cashier, y=dias_trabajados)) +
+  geom_point()
+gt
 
+summary(tempo3)
 
-    
+ggsave(paste(WD2, "promedioTrabajadoPeriodo.png", sep="\\"), plot=gt, width=12, height=12)
+ggsave(paste(WD2, "diasTrabajadosCajero.png", sep="\\"), plot=gl, width=12, height=12)
+
+### OBS: Podemos observar que el promedio de dias trabajados ed del 67,59% del todal de dias
+###       O equivalente a 61 dias de los 91 dias (3 meses Abril-Junio)
+
 # subset(datframe, condicion, columnas a verificar)
