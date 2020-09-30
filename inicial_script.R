@@ -405,10 +405,11 @@ ggsave(paste(WD2, "litrosPeriodoCajero.png", sep="\\"), plot=gl, width=12, heigh
 tempo3 <- f416 %>%
   filter(month != 7) %>%
   group_by(id_cashier, month, day) %>%
-  summarise(ticket_diarios = n())%>%
+  summarise(ticket_diarios = n(), t = sum(qty))%>%
   group_by(id_cashier) %>%
-  summarise(dias_trabajados=n()) %>%
-  mutate(promedio_periodo= round((dias_trabajados/(length(unique(f416$date))-1))*100, 1))
+  summarise(dias_trabajados=n(), total=sum(t)) %>%
+  mutate(promedio_trabajados= round((dias_trabajados/(length(unique(f416$date))-1))*100, 1),
+         eficiencia_litros = round((total/dias_trabajados),1))
   
 # Total de turnos realizados por todos los cajeros en 3 meses >>> 923
 # sum(tempo3$dias_trabajados)
@@ -420,7 +421,7 @@ tempo3$id_cashier <- factor(tempo3$id_cashier,
                                       "NN3","JOPI","ALFI","ARCA","EDMA","ALLE","GORA")
 )
 
-gp <- ggplot(tempo3, aes(x=id_cashier, y=promedio_periodo)) +
+gp <- ggplot(tempo3, aes(x=id_cashier, y=promedio_trabajados)) +
   geom_point()
 gp
 gt <- ggplot(tempo3, aes(x=id_cashier, y=dias_trabajados)) +
@@ -435,4 +436,28 @@ ggsave(paste(WD2, "diasTrabajadosCajero.png", sep="\\"), plot=gl, width=12, heig
 ### OBS: Podemos observar que el promedio de dias trabajados ed del 67,59% del todal de dias
 ###       O equivalente a 61 dias de los 91 dias (3 meses Abril-Junio)
 
-# subset(datframe, condicion, columnas a verificar)
+
+###
+############################ CREACION DATA FRAME PARA EL ALGORITMO #######################
+###
+
+temporal <- f416
+temporal <- filter(temporal,month!=7)
+temporal$id_cashier <- factor(temporal$id_cashier,
+                            levels = c(1000, 1001, 1002, 1003, 1005,  1006, 1008, 1009,
+                                       1011, 1012, 1014, 1016, 1018, 1019, 1020),
+                            labels = c("ShCa","ENVA","VICA","GIVA","NN1","MAMA", "NN2","JUCR",
+                                       "NN3","JOPI","ALFI","ARCA","EDMA","ALLE","GORA")
+)
+tempo3 <-select(tempo3, -dias_trabajados, -total, -promedio_trabajados)
+temporal <- merge(temporal, tempo3, by="id_cashier")
+
+
+# Transformar columna event y eficiencia en dummy para utilizar en Kmean
+
+temporal <- temporal %>%
+            mutate(valor_eficiencia=1,
+                  valor_event=1) %>%
+            spread(key= eficiencia_litros, value=valor_eficiencia) %>%
+            spread(key=event, value=valor_event)
+    
